@@ -1,0 +1,12 @@
+{
+  "team": "Team members",
+  "members": [
+    {"name": "Yoan Hagel", "ID": "208905273"},
+    {"name": "Yenkel Jaoui", "ID": "324523075"},
+    {"name": "Yoeli Bartel", "ID": "342532757"},
+    {"name": "Gabriel Bensamoun", "ID": "340879592"},
+    {"name": "Dan Yosef Avitan", "ID": "203109996"},
+    {"name": "Roei Zaburoff", "ID": "205685555"}
+  ],
+  "projectDescription": "Our project, DiveExplore, is a social media platform designed for divers worldwide. It enables divers to discover dive spots, share new locations they've found, and interact by commenting and liking each other's posts. A key feature is facilitating connections between divers: if a diver is exploring alone and interested in a specific spot, they can schedule themselves for a dive on a specific day and time. This allows another diver to join them, as diving alone is not permitted in many places. This feature enhances safety and community among divers."
+}
