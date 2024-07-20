@@ -2,9 +2,13 @@ version: 2.1
 orbs:
   node: circleci/node@5
 
+workflows:
+    - build-test-link
+
 jobs:
   build-test-link:
-    executor: node/default
+    executor: 
+      name: node/default
     steps:
       - checkout
       - run:
