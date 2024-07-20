@@ -3,7 +3,8 @@ orbs:
   node: circleci/node@5
 
 workflows:
-    - build-test-link
+    my-workflow:
+      - build-test-link
 
 jobs:
   build-test-link:
