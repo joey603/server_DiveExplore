@@ -9,8 +9,9 @@ const port = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Adjust path to go up one directory level
-const dataPath = path.join(__dirname, '..', 'data', 'about.json');
+// Adjust path to go from serverDiveExplore to Client_DiveExplore-cdd2/data/about.json
+const dataPath = path.join(__dirname, '../..', 'Client_DiveExplore-cdd2', 'data', 'about.json');
+//const dataPath = path.join(__dirname, '..', 'data', 'about.json');
 
 app.get('/ping', (req, res) => {
     res.send('pong <team’s number>');
