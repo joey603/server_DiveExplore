@@ -78,6 +78,28 @@ app.post('/signup', async (req, res) => {
     }
 });
 
+// Handle sign-in requests
+app.post('/signin', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        const db = await connectDB();
+        const usersCollection = db.collection('users');
+        const user = await usersCollection.findOne({ username });
+
+        if (user && user.password === password) {
+            // User found and password matches
+            res.status(200).json({ message: 'Sign-in successful' });
+        } else {
+            // User not found or password does not match
+            res.status(401).json({ message: 'Invalid username or password' });
+        }
+    } catch (err) {
+        console.error('Error signing in user:', err);
+        res.status(500).json({ message: 'Error signing in user' });
+    }
+});
+
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
