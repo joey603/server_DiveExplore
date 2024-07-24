@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/index.js'; // Adjust the path if necessary
+import app from '../src/index.js';
 
 describe("Dummy tests", ()=>{
   describe('API routes', () => {

@@ -19,9 +19,9 @@ const dataPath = path.join(__dirname, '..', 'data', 'about.json');
 // Use the environment variable for MongoDB connection string
 const mongoDBConnectionString = process.env.MONGODB_URI;
 
-mongoose.connect(mongoDBConnectionString, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB connected...'))
-    .catch(err => console.log(err));
+mongoose.connect(mongoDBConnectionString)
+  .then(() => console.log('MongoDB connected...'))
+  .catch(err => console.log(err));
 
 
 // Use CORS middleware to allow requests from any origin
@@ -78,8 +78,10 @@ app.post('/signup', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
+
+
+const server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
-});
+  });
 
 export default app; // Export the app instance
