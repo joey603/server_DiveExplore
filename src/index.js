@@ -20,8 +20,8 @@ const dataPath = path.join(__dirname, '..', 'data', 'about.json');
 const mongoDBConnectionString = process.env.MONGODB_URI;
 
 mongoose.connect(mongoDBConnectionString, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB connected...'))
-  .catch(err => console.log(err));
+    .then(() => console.log('MongoDB connected...'))
+    .catch(err => console.log(err));
 
 
 // Use CORS middleware to allow requests from any origin
