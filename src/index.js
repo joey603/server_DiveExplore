@@ -2,11 +2,12 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import cors from 'cors'; // Import the CORS middleware
-import connectDB from '../db.js'; // Import the MongoDB connection function
+import cors from 'cors';
+import connectDB from '../db.js';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import multer from 'multer';
+
 
 dotenv.config();
 
@@ -16,156 +17,271 @@ const port = process.env.PORT || 3001;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataPath = path.join(__dirname, '..', 'data', 'about.json');
+// Configuration de la base de données MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => console.log('MongoDB connected...'))
+  .catch(err => console.log(err));
 
-// Use the environment variable for MongoDB connection string
-const mongoDBConnectionString = process.env.MONGODB_URI;
+// Schéma et modèle de Post
+const postSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  media: String,
+  likes: { type: Number, default: 0 },
+  likedBy: [String],
+  comments: [{ username: String, comment: String, date: Date }],
+  shares: { type: Number, default: 0 },
+  savedBy: [String],
+  createdAt: { type: Date, default: Date.now },
+  username: String,
+});
 
-mongoose.connect(mongoDBConnectionString)
-    .then(() => console.log('MongoDB connected...'))
-    .catch(err => console.log(err));
+const Post = mongoose.model('Post', postSchema);
 
-// Use CORS middleware to allow requests from any origin
+// Schéma et modèle de User
+const userSchema = new mongoose.Schema({
+  username: String,
+  email: String,
+  password: String,
+});
+
+const User = mongoose.model('User', userSchema);
+
+// Middleware
 app.use(cors());
-
-// Middleware to parse JSON request bodies
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Set up multer for file uploads
-const upload = multer({ dest: 'uploads/' });
+// Configuration de Multer pour les téléchargements de fichiers
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, 'uploads'));
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
+// Données de test pour les spots de plongée
 const divingSpots = [
-    { id: '1', name: 'Blue Hole', location: 'Belize', description: 'A famous diving spot with beautiful coral reefs and marine life.', images: [], fish: ['Clownfish', 'Lionfish', 'Turtles'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 17.3151, longitude: -87.5355 },
-    { id: '2', name: 'Great Barrier Reef', location: 'Australia', description: 'The largest coral reef system in the world, home to diverse marine life.', images: [], fish: ['Clownfish', 'Sharks', 'Rays'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: -18.2871, longitude: 147.6992 },
-    { id: '3', name: 'Red Sea', location: 'Egypt', description: 'A popular diving destination with clear water and vibrant coral reefs.', images: [], fish: ['Butterflyfish', 'Angelfish', 'Moray Eels'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 27.2167, longitude: 33.8333 },
-    { id: '4', name: 'Ashdod', location: 'Israel', description: 'A beautiful coastal city with amazing diving spots.', images: [], fish: ['Sardines', 'Tuna', 'Mackerel'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 31.8067, longitude: 34.6415 },
+  { id: '1', name: 'Blue Hole', location: 'Belize', description: 'A famous diving spot with beautiful coral reefs and marine life.', images: [], fish: ['Clownfish', 'Lionfish', 'Turtles'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 17.3151, longitude: -87.5355 },
+  { id: '2', name: 'Great Barrier Reef', location: 'Australia', description: 'The largest coral reef system in the world, home to diverse marine life.', images: [], fish: ['Clownfish', 'Sharks', 'Rays'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: -18.2871, longitude: 147.6992 },
+  { id: '3', name: 'Red Sea', location: 'Egypt', description: 'A popular diving destination with clear water and vibrant coral reefs.', images: [], fish: ['Butterflyfish', 'Angelfish', 'Moray Eels'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 27.2167, longitude: 33.8333 },
+  { id: '4', name: 'Ashdod', location: 'Israel', description: 'A beautiful coastal city with amazing diving spots.', images: [], fish: ['Sardines', 'Tuna', 'Mackerel'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 31.8067, longitude: 34.6415 }
 ];
+
+let users = [];
 
 // Routes
 app.get('/ping', (req, res) => {
-    res.send('pong <team’s number>');
+  res.send('pong <team’s number>');
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
-
 app.get('/about', (req, res) => {
-    console.log(`Trying to read file at: ${dataPath}`);
-    fs.readFile(dataPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error(`Error reading file: ${err.message}`);
-            res.status(500).send('Error reading about content');
-            return;
-        }
-        try {
-            const parsedData = JSON.parse(data);
-            res.json(parsedData);
-        } catch (jsonError) {
-            console.error(`Error parsing JSON: ${jsonError.message}`);
-            res.status(500).send('Error parsing about content');
-        }
-    });
+  const dataPath = path.join(__dirname, '..', 'data', 'about.json');
+  console.log(`Trying to read file at: ${dataPath}`);
+  fs.readFile(dataPath, 'utf8', (err, data) => {
+    if (err) {
+      console.error(`Error reading file: ${err.message}`);
+      res.status(500).send('Error reading about content');
+      return;
+    }
+    try {
+      const parsedData = JSON.parse(data);
+      res.json(parsedData);
+    } catch (jsonError) {
+      console.error(`Error parsing JSON: ${jsonError.message}`);
+      res.status(500).send('Error parsing about content');
+    }
+  });
 });
 
 app.get('/', (req, res) => {
-    res.redirect('/about');
+  res.redirect('/about');
 });
 
-// Handle signup requests
 app.post('/signup', async (req, res) => {
-    const { username, email, password } = req.body;
-    const newUser = { username, email, password };
+  const { username, email, password } = req.body;
+  const newUser = new User({ username, email, password });
 
-    try {
-        const db = await connectDB();
-        const usersCollection = db.collection('users');
-        const result = await usersCollection.insertOne(newUser);
-        
-        console.log('New user registered:', result.insertedId);
-        res.status(201).json({ message: 'Signup successful', userId: result.insertedId });
+  try {
+    // Enregistrer le nouvel utilisateur dans la base de données
+    const savedUser = await newUser.save();
 
-    } catch (err) {
-        console.error('Error registering user:', err);
-        res.status(500).json({ message: 'Error registering user' });
-    }
+    console.log('New user registered:', savedUser._id);
+
+    // Créer un post pour le nouvel utilisateur
+    const newPost = new Post({
+      title: 'Welcome Post',
+      description: 'Hey, I am a new user.',
+      username: savedUser.username,
+    });
+
+    await newPost.save();
+
+    res.status(201).json({ message: 'Signup successful', userId: savedUser._id });
+  } catch (err) {
+    console.error('Error registering user:', err);
+    res.status(500).json({ message: 'Error registering user' });
+  }
 });
 
-// Handle sign-in requests
 app.post('/signin', async (req, res) => {
-    const { username, password } = req.body;
+  const { username, password } = req.body;
 
-    try {
-        const db = await connectDB();
-        const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ username });
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection('users');
+    const user = await usersCollection.findOne({ username });
 
-        if (user && user.password === password) {
-            res.status(200).json({ message: 'Server : Sign-in successful' });
-        } else {
-            res.status(401).json({ message: 'Invalid username or password' });
-        }
-    } catch (err) {
-        console.error('Error signing in user:', err);
-        res.status(500).json({ message: 'Error signing in user' });
+    if (user && user.password === password) {
+      res.status(200).json({ message: 'Server : Sign-in successful' });
+    } else {
+      res.status(401).json({ message: 'Invalid username or password' });
     }
+  } catch (err) {
+    console.error('Error signing in user:', err);
+    res.status(500).json({ message: 'Error signing in user' });
+  }
 });
 
-// Dive spots routes
+// Routes pour les spots de plongée
 app.get('/dive-spots', (req, res) => {
-    res.json(divingSpots);
+  res.json(divingSpots);
 });
 
 app.get('/dive-spots/:id', (req, res) => {
-    const spot = divingSpots.find((spot) => spot.id === req.params.id);
-    if (!spot) {
-        return res.status(404).send('Dive spot not found');
-    }
-    res.json(spot);
+  const spot = divingSpots.find(spot => spot.id === req.params.id);
+  if (!spot) {
+    return res.status(404).send('Dive spot not found');
+  }
+  res.json(spot);
 });
 
 app.post('/dive-spots/:id/like', (req, res) => {
-    const spot = divingSpots.find((spot) => spot.id === req.params.id);
-    if (!spot) {
-        return res.status(404).send('Dive spot not found');
-    }
-    const { username } = req.body;
-    if (!spot.userLikes.includes(username)) {
-        spot.likes += 1;
-        spot.userLikes.push(username);
-    }
-    res.json(spot);
+  const spot = divingSpots.find(spot => spot.id === req.params.id);
+  if (!spot) {
+    return res.status(404).send('Dive spot not found');
+  }
+  const { username } = req.body;
+  if (!spot.userLikes.includes(username)) {
+    spot.likes += 1;
+    spot.userLikes.push(username);
+  }
+  res.json(spot);
 });
 
 app.post('/dive-spots/:id/dislike', (req, res) => {
-    const spot = divingSpots.find((spot) => spot.id === req.params.id);
-    if (!spot) {
-        return res.status(404).send('Dive spot not found');
-    }
-    const { username } = req.body;
-    if (!spot.userDislikes.includes(username)) {
-        spot.dislikes += 1;
-        spot.userDislikes.push(username);
-    }
-    res.json(spot);
+  const spot = divingSpots.find(spot => spot.id === req.params.id);
+  if (!spot) {
+    return res.status(404).send('Dive spot not found');
+  }
+  const { username } = req.body;
+  if (!spot.userDislikes.includes(username)) {
+    spot.dislikes += 1;
+    spot.userDislikes.push(username);
+  }
+  res.json(spot);
 });
 
 app.post('/dive-spots/:id/fish', (req, res) => {
-    const spot = divingSpots.find((spot) => spot.id === req.params.id);
-    if (!spot) {
-        return res.status(404).send('Dive spot not found');
-    }
-    const { fishName } = req.body;
-    spot.fish.push(fishName);
-    res.json(spot.fish);
+  const spot = divingSpots.find(spot => spot.id === req.params.id);
+  if (!spot) {
+    return res.status(404).send('Dive spot not found');
+  }
+  const { fishName } = req.body;
+  spot.fish.push(fishName);
+  res.json(spot.fish);
 });
 
 app.post('/dive-spots/:id/photo', upload.single('photo'), (req, res) => {
-    const spot = divingSpots.find((spot) => spot.id === req.params.id);
-    if (!spot) {
-        return res.status(404).send('Dive spot not found');
+  const spot = divingSpots.find(spot => spot.id === req.params.id);
+  if (!spot) {
+    return res.status(404).send('Dive spot not found');
+  }
+  const imageUrl = `http://localhost:${port}/uploads/${req.file.filename}`;
+  spot.images.push(imageUrl);
+  res.json(imageUrl);
+});
+
+// Routes pour les posts
+app.get('/posts', async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    console.error('Error fetching posts:', err);
+    res.status(500).json({ message: 'Error fetching posts' });
+  }
+});
+
+app.post('/posts', upload.single('media'), async (req, res) => {
+  const { title, description, username } = req.body;
+  if (!username) {
+    return res.status(400).send('Title and username are required');
+  }
+
+  try {
+    const newPost = new Post({
+      title,
+      description: description || '',
+      media: req.file ? `/uploads/${req.file.filename}` : null,
+      username,
+    });
+
+    await newPost.save();
+    res.json(newPost);
+  } catch (err) {
+    console.error('Error creating post:', err);
+    res.status(500).json({ message: 'Error creating post' });
+  }
+});
+
+app.post('/posts/:id/like', async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+      if (!post) return res.status(404).send('Post not found');
+  
+      const { username } = req.body;
+      if (!username) return res.status(400).send('Username is required');
+  
+      if (!post.likedBy.includes(username)) {
+        post.likes += 1;
+        post.likedBy.push(username);
+        await post.save();
+        res.json(post);
+      } else {
+        res.status(400).send('User has already liked this post');
+      }
+    } catch (err) {
+      console.error('Error liking post:', err);
+      res.status(500).json({ message: 'Error liking post' });
     }
-    const imageUrl = `http://localhost:${port}/uploads/${req.file.filename}`;
-    spot.images.push(imageUrl);
-    res.json(imageUrl);
+  });
+
+app.post('/posts/:id/comment', async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+      if (!post) return res.status(404).send('Post not found');
+  
+      const { username, comment } = req.body;
+      if (!username || !comment) return res.status(400).send('Username and comment are required');
+  
+      post.comments.push({ username, comment, date: new Date() });
+      await post.save();
+      res.json(post);
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      res.status(500).json({ message: 'Error adding comment' });
+    }
+  });
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
 
 // Server-side routes (example)
@@ -201,10 +317,5 @@ app.get('/posts/:username', (req, res) => {
   });
   
 
-app.use('/uploads', express.static('uploads'));
+export default app;
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
-
-export default app; // Export the app instance
