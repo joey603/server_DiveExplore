@@ -168,6 +168,39 @@ app.post('/dive-spots/:id/photo', upload.single('photo'), (req, res) => {
     res.json(imageUrl);
 });
 
+// Server-side routes (example)
+
+app.get('/posts/:username', (req, res) => {
+    const { username } = req.params;
+    // Fetch posts logic
+  });
+  
+  app.get('/following/:username', (req, res) => {
+    const { username } = req.params;
+    // Fetch following users logic
+  });
+  
+  app.get('/liked-posts/:username', (req, res) => {
+    const { username } = req.params;
+    // Fetch liked posts logic
+  });
+  
+  app.get('/saved-posts/:username', (req, res) => {
+    const { username } = req.params;
+    // Fetch saved posts logic
+  });
+  
+  app.delete('/posts/:postId', (req, res) => {
+    const { postId } = req.params;
+    // Delete post logic
+  });
+  
+  app.post('/unfollow', (req, res) => {
+    const { currentUser, username } = req.body;
+    // Unfollow user logic
+  });
+  
+
 app.use('/uploads', express.static('uploads'));
 
 app.listen(port, () => {
