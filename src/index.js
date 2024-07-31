@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import multer from 'multer';
 
+
 dotenv.config();
 
 const app = express();
@@ -16,19 +17,45 @@ const port = process.env.PORT || 3001;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataPath = path.join(__dirname, '..', 'data', 'about.json');
-const mongoDBConnectionString = process.env.MONGODB_URI;
-
-mongoose.connect(mongoDBConnectionString)
+// Configuration de la base de données MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.log(err));
+
+// Schéma et modèle de Post
+const postSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  media: String,
+  likes: { type: Number, default: 0 },
+  likedBy: [String],
+  comments: [{ username: String, comment: String, date: Date }],
+  shares: { type: Number, default: 0 },
+  savedBy: [String],
+  createdAt: { type: Date, default: Date.now },
+  username: String,
+});
+
+const Post = mongoose.model('Post', postSchema);
+
+// Schéma et modèle de User
+const userSchema = new mongoose.Schema({
+  username: String,
+  email: String,
+  password: String,
+});
+
+const User = mongoose.model('User', userSchema);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Multer setup for file uploads
+// Configuration de Multer pour les téléchargements de fichiers
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, path.join(__dirname, 'uploads'));
@@ -39,17 +66,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Sample data
+// Données de test pour les spots de plongée
 const divingSpots = [
   { id: '1', name: 'Blue Hole', location: 'Belize', description: 'A famous diving spot with beautiful coral reefs and marine life.', images: [], fish: ['Clownfish', 'Lionfish', 'Turtles'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 17.3151, longitude: -87.5355 },
   { id: '2', name: 'Great Barrier Reef', location: 'Australia', description: 'The largest coral reef system in the world, home to diverse marine life.', images: [], fish: ['Clownfish', 'Sharks', 'Rays'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: -18.2871, longitude: 147.6992 },
   { id: '3', name: 'Red Sea', location: 'Egypt', description: 'A popular diving destination with clear water and vibrant coral reefs.', images: [], fish: ['Butterflyfish', 'Angelfish', 'Moray Eels'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 27.2167, longitude: 33.8333 },
   { id: '4', name: 'Ashdod', location: 'Israel', description: 'A beautiful coastal city with amazing diving spots.', images: [], fish: ['Sardines', 'Tuna', 'Mackerel'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 31.8067, longitude: 34.6415 }
-];
-
-let posts = [
-  { id: 1, title: 'Great Dive at the Blue Hole', description: 'Had an amazing experience...', likes: 0, likedBy: [], comments: [], shares: 0, savedBy: [], createdAt: new Date(), media: null },
-  { id: 2, title: 'Exploring the Great Barrier Reef', description: 'Saw so many wonderful...', likes: 0, likedBy: [], comments: [], shares: 0, savedBy: [], createdAt: new Date(), media: null }
 ];
 
 let users = [];
@@ -59,9 +81,8 @@ app.get('/ping', (req, res) => {
   res.send('pong <team’s number>');
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
-
 app.get('/about', (req, res) => {
+  const dataPath = path.join(__dirname, '..', 'data', 'about.json');
   console.log(`Trying to read file at: ${dataPath}`);
   fs.readFile(dataPath, 'utf8', (err, data) => {
     if (err) {
@@ -85,15 +106,24 @@ app.get('/', (req, res) => {
 
 app.post('/signup', async (req, res) => {
   const { username, email, password } = req.body;
-  const newUser = { username, email, password };
+  const newUser = new User({ username, email, password });
 
   try {
-    const db = await connectDB();
-    const usersCollection = db.collection('users');
-    const result = await usersCollection.insertOne(newUser);
+    // Enregistrer le nouvel utilisateur dans la base de données
+    const savedUser = await newUser.save();
 
-    console.log('New user registered:', result.insertedId);
-    res.status(201).json({ message: 'Signup successful', userId: result.insertedId });
+    console.log('New user registered:', savedUser._id);
+
+    // Créer un post pour le nouvel utilisateur
+    const newPost = new Post({
+      title: 'Welcome Post',
+      description: 'Hey, I am a new user.',
+      username: savedUser.username,
+    });
+
+    await newPost.save();
+
+    res.status(201).json({ message: 'Signup successful', userId: savedUser._id });
   } catch (err) {
     console.error('Error registering user:', err);
     res.status(500).json({ message: 'Error registering user' });
@@ -119,7 +149,7 @@ app.post('/signin', async (req, res) => {
   }
 });
 
-// Dive spots routes
+// Routes pour les spots de plongée
 app.get('/dive-spots', (req, res) => {
   res.json(divingSpots);
 });
@@ -173,97 +203,86 @@ app.post('/dive-spots/:id/photo', upload.single('photo'), (req, res) => {
   if (!spot) {
     return res.status(404).send('Dive spot not found');
   }
-  const imageUrl = `/uploads/${req.file.filename}`;
+  const imageUrl = `http://localhost:${port}/uploads/${req.file.filename}`;
   spot.images.push(imageUrl);
   res.json(imageUrl);
 });
 
-// Post routes
-app.get('/posts', (req, res) => {
-  res.json(posts);
+// Routes pour les posts
+app.get('/posts', async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    console.error('Error fetching posts:', err);
+    res.status(500).json({ message: 'Error fetching posts' });
+  }
 });
 
-app.post('/posts', upload.single('media'), (req, res) => {
+app.post('/posts', upload.single('media'), async (req, res) => {
   const { title, description, username } = req.body;
-  if (!title || !description || !username) {
-    return res.status(400).send('Title, description, and username are required');
-  }
-
-  const newPost = {
-    id: posts.length + 1,
-    title,
-    description,
-    media: req.file ? `/uploads/${req.file.filename}` : null,
-    likes: 0,
-    likedBy: [],
-    comments: [],
-    shares: 0,
-    savedBy: [],
-    createdAt: new Date()
-  };
-
-  posts.push(newPost);
-  res.json(newPost);
-});
-
-app.post('/posts/:id/like', (req, res) => {
-  const post = posts.find(p => p.id === parseInt(req.params.id));
-  if (post) {
-    const { username } = req.body;
-    if (!username) {
-      return res.status(400).send('Username is required');
-    }
-    if (!post.likedBy.includes(username)) {
-      post.likes += 1;
-      post.likedBy.push(username);
-      res.json(post);
-    } else {
-      res.status(400).send('User has already liked this post');
-    }
-  } else {
-    res.status(404).send('Post not found');
-  }
-});
-
-app.post('/posts/:id/comment', (req, res) => {
-  const post = posts.find(p => p.id === parseInt(req.params.id));
-  if (post) {
-    const { username, comment } = req.body;
-    if (!username || !comment) {
-      return res.status(400).send('Username and comment are required');
-    }
-    post.comments.push({ username, comment, date: new Date() });
-    res.json(post);
-  } else {
-    res.status(404).send('Post not found');
-  }
-});
-
-app.post('/users', (req, res) => {
-  const { username } = req.body;
   if (!username) {
-    return res.status(400).send('Username is required');
+    return res.status(400).send('Title and username are required');
   }
 
-  users.push(username);
-  const newUserPost = {
-    id: posts.length + 1,
-    title: username,
-    description: 'Hey, I am a new user.',
-    likes: 0,
-    likedBy: [],
-    comments: [],
-    shares: 0,
-    savedBy: [],
-    createdAt: new Date(),
-    media: null
-  };
-  posts.push(newUserPost);
-  res.json(newUserPost);
+  try {
+    const newPost = new Post({
+      title,
+      description: description || '',
+      media: req.file ? `/uploads/${req.file.filename}` : null,
+      username,
+    });
+
+    await newPost.save();
+    res.json(newPost);
+  } catch (err) {
+    console.error('Error creating post:', err);
+    res.status(500).json({ message: 'Error creating post' });
+  }
 });
+
+app.post('/posts/:id/like', async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+      if (!post) return res.status(404).send('Post not found');
+  
+      const { username } = req.body;
+      if (!username) return res.status(400).send('Username is required');
+  
+      if (!post.likedBy.includes(username)) {
+        post.likes += 1;
+        post.likedBy.push(username);
+        await post.save();
+        res.json(post);
+      } else {
+        res.status(400).send('User has already liked this post');
+      }
+    } catch (err) {
+      console.error('Error liking post:', err);
+      res.status(500).json({ message: 'Error liking post' });
+    }
+  });
+
+app.post('/posts/:id/comment', async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+      if (!post) return res.status(404).send('Post not found');
+  
+      const { username, comment } = req.body;
+      if (!username || !comment) return res.status(400).send('Username and comment are required');
+  
+      post.comments.push({ username, comment, date: new Date() });
+      await post.save();
+      res.json(post);
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      res.status(500).json({ message: 'Error adding comment' });
+    }
+  });
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
 
 export default app;
+
