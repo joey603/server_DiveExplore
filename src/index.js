@@ -3,7 +3,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import cors from 'cors';
-import connectDB from '../db.js';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import multer from 'multer';
@@ -18,10 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration de la base de données MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.log(err));
 
@@ -34,6 +30,7 @@ const postSchema = new mongoose.Schema({
   likedBy: [String],
   comments: [{ username: String, comment: String, date: Date }],
   shares: { type: Number, default: 0 },
+  sharedBy: [String],
   savedBy: [String],
   createdAt: { type: Date, default: Date.now },
   username: String,
@@ -105,49 +102,57 @@ app.get('/', (req, res) => {
 });
 
 app.post('/signup', async (req, res) => {
-  const { username, email, password } = req.body;
-  const newUser = new User({ username, email, password });
+    const { username, email, password } = req.body;
+  
+    try {
+      // Check if username or email already exists
+      const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+  
+      if (existingUser) {
+        // If either username or email is already in use, return an error
+        return res.status(400).json({
+          message: existingUser.username === username ? 'Username already exists' : 'Email already exists',
+        });
+      }
+  
+      // Create a new user
+      const newUser = new User({ username, email, password });
+      const savedUser = await newUser.save();
+      console.log('New user registered:', savedUser._id);
+  
+      // Create a welcome post for the new user
+      const newPost = new Post({
+        title: 'Welcome Post',
+        description: 'Hey, I am a new user.',
+        username: savedUser.username,
+      });
+  
+      await newPost.save();
+  
+      res.status(201).json({ message: 'Signup successful', userId: savedUser._id });
+    } catch (err) {
+      console.error('Error registering user:', err);
+      res.status(500).json({ message: 'Error registering user' });
+    }
+  });
 
-  try {
-    // Enregistrer le nouvel utilisateur dans la base de données
-    const savedUser = await newUser.save();
-
-    console.log('New user registered:', savedUser._id);
-
-    // Créer un post pour le nouvel utilisateur
-    const newPost = new Post({
-      title: 'Welcome Post',
-      description: 'Hey, I am a new user.',
-      username: savedUser.username,
-    });
-
-    await newPost.save();
-
-    res.status(201).json({ message: 'Signup successful', userId: savedUser._id });
-  } catch (err) {
-    console.error('Error registering user:', err);
-    res.status(500).json({ message: 'Error registering user' });
-  }
-});
 
 app.post('/signin', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    const db = await connectDB();
-    const usersCollection = db.collection('users');
-    const user = await usersCollection.findOne({ username });
-
-    if (user && user.password === password) {
-      res.status(200).json({ message: 'Server : Sign-in successful' });
-    } else {
-      res.status(401).json({ message: 'Invalid username or password' });
+    const { username, password } = req.body;
+  
+    try {
+      const user = await User.findOne({ username });
+  
+      if (user && user.password === password) {
+        res.status(200).json({ message: 'Sign-in successful' });
+      } else {
+        res.status(401).json({ message: 'Invalid username or password' });
+      }
+    } catch (err) {
+      console.error('Error signing in user:', err);
+      res.status(500).json({ message: 'Error signing in user' });
     }
-  } catch (err) {
-    console.error('Error signing in user:', err);
-    res.status(500).json({ message: 'Error signing in user' });
-  }
-});
+  });
 
 // Routes pour les spots de plongée
 app.get('/dive-spots', (req, res) => {
@@ -280,15 +285,87 @@ app.post('/posts/:id/comment', async (req, res) => {
     }
   });
 
+app.post('/posts/:postId/share', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { username } = req.body;
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).send('Post not found');
+
+    if (!post.sharedBy.includes(username)) {
+      post.shares += 1;
+      post.sharedBy.push(username);
+      await post.save();
+    }
+
+    res.json(post);
+  } catch (error) {
+    res.status(500).send('Error sharing post');
+  }
+});
+
+// Save post
+app.post('/posts/:postId/save', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { username } = req.body;
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).send('Post not found');
+
+    if (!post.savedBy.includes(username)) {
+      post.savedBy.push(username);
+      await post.save();
+    }
+
+    res.json(post);
+  } catch (error) {
+    res.status(500).send('Error saving post');
+  }
+});
+
+
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
 
 // Server-side routes (example)
-
-app.get('/posts/:username', (req, res) => {
+app.put('/posts/:id', upload.single('media'), async (req, res) => {
+    const { title, description, username } = req.body;
+    const postId = req.params.id;
+  
+    try {
+      const post = await Post.findById(postId);
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+  
+      post.title = title || post.title;
+      post.description = description || post.description;
+      post.username = username || post.username;
+      if (req.file) {
+        post.media = `/uploads/${req.file.filename}`;
+      }
+  
+      await post.save();
+      res.json(post);
+    } catch (err) {
+      console.error('Error updating post:', err);
+      res.status(500).json({ message: 'Error updating post' });
+    }
+  });
+  
+app.get('/posts/:username', async (req, res) => {
     const { username } = req.params;
-    // Fetch posts logic
+    try {
+      const posts = await Post.find({ username }).sort({ createdAt: -1 });
+      res.json(posts);
+    } catch (err) {
+      console.error('Error fetching posts by user:', err);
+      res.status(500).json({ message: 'Error fetching posts by user' });
+    }
   });
   
   app.get('/following/:username', (req, res) => {
@@ -306,9 +383,14 @@ app.get('/posts/:username', (req, res) => {
     // Fetch saved posts logic
   });
   
-  app.delete('/posts/:postId', (req, res) => {
+  app.delete('/posts/:postId', async (req, res) => {
     const { postId } = req.params;
-    // Delete post logic
+    try {
+      await Post.findByIdAndDelete(postId);
+      res.status(200).json({ message: 'Post deleted successfully' });
+    } catch (err) {
+      res.status(500).json({ error: 'Error deleting post' });
+    }
   });
   
   app.post('/unfollow', (req, res) => {
