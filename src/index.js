@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import multer from 'multer';
+import DiveSpootFile from './Get_Send_diving.js';
 
 
 dotenv.config();
@@ -43,6 +44,7 @@ const userSchema = new mongoose.Schema({
   username: String,
   email: String,
   password: String,
+  following: [String]
 });
 
 const User = mongoose.model('User', userSchema);
@@ -63,13 +65,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Données de test pour les spots de plongée
-const divingSpots = [
-  { id: '1', name: 'Blue Hole', location: 'Belize', description: 'A famous diving spot with beautiful coral reefs and marine life.', images: [], fish: ['Clownfish', 'Lionfish', 'Turtles'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 17.3151, longitude: -87.5355 },
-  { id: '2', name: 'Great Barrier Reef', location: 'Australia', description: 'The largest coral reef system in the world, home to diverse marine life.', images: [], fish: ['Clownfish', 'Sharks', 'Rays'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: -18.2871, longitude: 147.6992 },
-  { id: '3', name: 'Red Sea', location: 'Egypt', description: 'A popular diving destination with clear water and vibrant coral reefs.', images: [], fish: ['Butterflyfish', 'Angelfish', 'Moray Eels'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 27.2167, longitude: 33.8333 },
-  { id: '4', name: 'Ashdod', location: 'Israel', description: 'A beautiful coastal city with amazing diving spots.', images: [], fish: ['Sardines', 'Tuna', 'Mackerel'], likes: 0, dislikes: 0, userLikes: [], userDislikes: [], latitude: 31.8067, longitude: 34.6415 }
-];
 
 let users = [];
 
@@ -153,65 +148,6 @@ app.post('/signin', async (req, res) => {
       res.status(500).json({ message: 'Error signing in user' });
     }
   });
-
-// Routes pour les spots de plongée
-app.get('/dive-spots', (req, res) => {
-  res.json(divingSpots);
-});
-
-app.get('/dive-spots/:id', (req, res) => {
-  const spot = divingSpots.find(spot => spot.id === req.params.id);
-  if (!spot) {
-    return res.status(404).send('Dive spot not found');
-  }
-  res.json(spot);
-});
-
-app.post('/dive-spots/:id/like', (req, res) => {
-  const spot = divingSpots.find(spot => spot.id === req.params.id);
-  if (!spot) {
-    return res.status(404).send('Dive spot not found');
-  }
-  const { username } = req.body;
-  if (!spot.userLikes.includes(username)) {
-    spot.likes += 1;
-    spot.userLikes.push(username);
-  }
-  res.json(spot);
-});
-
-app.post('/dive-spots/:id/dislike', (req, res) => {
-  const spot = divingSpots.find(spot => spot.id === req.params.id);
-  if (!spot) {
-    return res.status(404).send('Dive spot not found');
-  }
-  const { username } = req.body;
-  if (!spot.userDislikes.includes(username)) {
-    spot.dislikes += 1;
-    spot.userDislikes.push(username);
-  }
-  res.json(spot);
-});
-
-app.post('/dive-spots/:id/fish', (req, res) => {
-  const spot = divingSpots.find(spot => spot.id === req.params.id);
-  if (!spot) {
-    return res.status(404).send('Dive spot not found');
-  }
-  const { fishName } = req.body;
-  spot.fish.push(fishName);
-  res.json(spot.fish);
-});
-
-app.post('/dive-spots/:id/photo', upload.single('photo'), (req, res) => {
-  const spot = divingSpots.find(spot => spot.id === req.params.id);
-  if (!spot) {
-    return res.status(404).send('Dive spot not found');
-  }
-  const imageUrl = `http://localhost:${port}/uploads/${req.file.filename}`;
-  spot.images.push(imageUrl);
-  res.json(imageUrl);
-});
 
 // Routes pour les posts
 app.get('/posts', async (req, res) => {
@@ -325,6 +261,8 @@ app.post('/posts/:postId/save', async (req, res) => {
   }
 });
 
+// Use routes
+app.use('/dive-spots', DiveSpootFile);
 
 
 app.listen(port, () => {
@@ -367,20 +305,104 @@ app.get('/posts/:username', async (req, res) => {
       res.status(500).json({ message: 'Error fetching posts by user' });
     }
   });
+  //========================================================================================================
+  // Route to follow a user
+  app.post('/follow', async (req, res) => {
+    const { currentUser, targetUser } = req.body;
+    
+    console.log('Follow Request:', { currentUser, targetUser }); // Log incoming request
   
-  app.get('/following/:username', (req, res) => {
-    const { username } = req.params;
-    // Fetch following users logic
+    try {
+      // Ensure both users exist
+      const currentUserDoc = await User.findOne({ username: currentUser });
+      const targetUserDoc = await User.findOne({ username: targetUser });
+    
+      if (!currentUserDoc || !targetUserDoc) {
+        return res.status(404).send('User(s) not found');
+      }
+  
+      console.log('Current User Document:', currentUserDoc); // Log current user document
+      console.log('Target User Document:', targetUserDoc);   // Log target user document
+    
+      // Add targetUser to currentUser's following list if not already followed
+      if (!currentUserDoc.following.includes(targetUser)) {
+        currentUserDoc.following.push(targetUser);
+        await currentUserDoc.save();
+        console.log('Updated Current User Document:', currentUserDoc); // Log updated document
+      }
+    
+      res.json({ message: `Now following ${targetUser}` });
+    } catch (err) {
+      console.error('Error following user:', err);
+      res.status(500).json({ message: 'Error following user' });
+    }
   });
   
-  app.get('/liked-posts/:username', (req, res) => {
+
+  
+  // Route to unfollow a user
+  app.post('/unfollow', async (req, res) => {
+    const { currentUser, targetUser } = req.body;
+  
+    try {
+      // Ensure both users exist
+      const currentUserDoc = await User.findOne({ username: currentUser });
+      const targetUserDoc = await User.findOne({ username: targetUser });
+  
+      if (!currentUserDoc || !targetUserDoc) {
+        return res.status(404).send('User(s) not found');
+      }
+  
+      // Remove targetUser from currentUser's following list if followed
+      const index = currentUserDoc.following.indexOf(targetUser);
+      if (index > -1) {
+        currentUserDoc.following.splice(index, 1);
+        await currentUserDoc.save();
+      }
+  
+      res.json({ message: `Unfollowed ${targetUser}` });
+    } catch (err) {
+      console.error('Error unfollowing user:', err);
+      res.status(500).json({ message: 'Error unfollowing user' });
+    }
+  });
+
+  app.post('/follow/:username', async (req, res) => {
     const { username } = req.params;
-    // Fetch liked posts logic
+    const { currentUser } = req.body;
+  
+    try {
+      const userToFollow = await User.findOne({ username });
+      if (!userToFollow) return res.status(404).send('User not found');
+  
+      const currentUserDoc = await User.findOne({ username: currentUser });
+      if (!currentUserDoc) return res.status(404).send('Current user not found');
+  
+      if (!currentUserDoc.following.includes(username)) {
+        currentUserDoc.following.push(username);
+        await currentUserDoc.save();
+        res.json({ success: true, message: `Successfully followed ${username}` });
+      } else {
+        res.status(400).json({ success: false, message: 'User is already followed' });
+      }
+    } catch (err) {
+      console.error('Error following user:', err);
+      res.status(500).json({ success: false, message: 'Error following user' });
+    }
   });
   
-  app.get('/saved-posts/:username', (req, res) => {
+  app.get('/follow/:username', async (req, res) => {
     const { username } = req.params;
-    // Fetch saved posts logic
+  
+    try {
+      const user = await User.findOne({ username });
+      if (!user) return res.status(404).send('User not found');
+  
+      res.json(user.following);
+    } catch (err) {
+      console.error('Error fetching following list:', err);
+      res.status(500).json({ message: 'Error fetching following list' });
+    }
   });
   
   app.delete('/posts/:postId', async (req, res) => {
@@ -393,10 +415,6 @@ app.get('/posts/:username', async (req, res) => {
     }
   });
   
-  app.post('/unfollow', (req, res) => {
-    const { currentUser, username } = req.body;
-    // Unfollow user logic
-  });
   
 
 export default app;
