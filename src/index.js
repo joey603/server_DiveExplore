@@ -373,7 +373,6 @@ app.get('/follow/:username', async (req, res) => {
     res.status(500).json({ message: 'Error fetching following list' });
   }
 });
-
 app.delete('/posts/:postId', async (req, res) => {
   const { postId } = req.params;
   try {
