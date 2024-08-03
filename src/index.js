@@ -28,12 +28,6 @@ cloudinary.api.ping()
   });
 
 // Configuration de la base de données MongoDB
-// mongoose.connect(process.env.MONGODB_URI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// })
-//   .then(() => console.log('MongoDB connected...'))
-//   .catch(err => console.error('Error connecting to MongoDB:', err));
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected...'))
   .catch(err => console.error('Error connecting to MongoDB:', err));
@@ -190,35 +184,6 @@ app.post('/posts', upload.single('media'), async (req, res) => {
     }
   });
   
-
-// app.post('/posts', upload.single('media'), async (req, res) => {
-//   const { title, description, username } = req.body;
-//   if (!username || !title) {
-//     return res.status(400).send('Title and username are required');
-//   }
-
-//   try {
-//     // Vérifie si le fichier a été téléchargé correctement
-//     if (!req.file) {
-//       return res.status(500).json({ message: 'Failed to upload media to Cloudinary' });
-//     }
-
-//     // Crée un nouveau post avec les informations de l'image
-//     const newPost = new Post({
-//       title,
-//       description: description || '',
-//       mediaUrl: req.file.path, // URL de l'image sur Cloudinary
-//       mediaPublicId: req.file.filename.split('/').pop(), // ID public de Cloudinary
-//       username,
-//     });
-
-//     await newPost.save();
-//     res.status(201).json(newPost);
-//   } catch (err) {
-//     console.error('Error creating post:', err);
-//     res.status(500).json({ message: 'Internal Server Error', error: err.message });
-//   }
-// });
 
 app.post('/posts/:id/like', async (req, res) => {
   try {
