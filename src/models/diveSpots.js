@@ -1,4 +1,3 @@
-// divingSpotSchema.js
 import mongoose from 'mongoose';
 
 const divingSpotSchema = new mongoose.Schema({
@@ -17,4 +16,5 @@ const divingSpotSchema = new mongoose.Schema({
 });
 
 const DivingSpot = mongoose.model('DivingSpot', divingSpotSchema);
+
 export default DivingSpot;

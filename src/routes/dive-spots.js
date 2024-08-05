@@ -2,8 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import divingSpotSchema from './divingSpotSchema.js';
-import DivingSpot from './divingSpotSchema.js'; // Assurez-vous que le chemin est correct
+import DivingSpot from '../models/diveSpots.js'; // Assurez-vous que le chemin est correct
 
 const router = express.Router();
 
@@ -35,7 +34,7 @@ router.post('/add_dive_spot', async (req, res) => {
 
   try {
     // Vérifier si un spot avec le même numéro existe déjà
-    const existingSpot = await divingSpotSchema.findOne({ number });
+    const existingSpot = await DivingSpot.findOne({ number });
 
     if (existingSpot) {
       return res.status(400).json({ message: 'Un spot de plongée avec ce numéro existe déjà' });
@@ -65,7 +64,7 @@ router.post('/add_dive_spot', async (req, res) => {
 // Récupérer tous les spots de plongée
 router.get('/get_dive_spots', async (req, res) => {
   try {
-    const spots = await divingSpotSchema.find({});
+    const spots = await DivingSpot.find({});
     res.status(200).json(spots);
   } catch (err) {
     console.error('Erreur lors de la récupération des spots de plongée:', err);
@@ -78,7 +77,7 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const spot = await divingSpotSchema.findById(id);
+    const spot = await DivingSpot.findById(id);
     if (!spot) {
       return res.status(404).json({ message: 'Spot de plongée non trouvé' });
     }
@@ -99,7 +98,7 @@ router.post('/:id/fish', async (req, res) => {
   }
 
   try {
-    const spot = await divingSpotSchema.findById(id);
+    const spot = await DivingSpot.findById(id);
     if (!spot) {
       return res.status(404).json({ message: 'Spot de plongée non trouvé' });
     }
@@ -124,7 +123,7 @@ router.post('/:id/photo', upload.single('photo'), async (req, res) => {
 
     const { path: imageUrl, filename: publicId } = req.file;
 
-    const updatedSpot = await divingSpotSchema.findByIdAndUpdate(
+    const updatedSpot = await DivingSpot.findByIdAndUpdate(
       id,
       { $push: { images: { url: imageUrl, public_id: publicId } } },
       { new: true }
@@ -176,7 +175,7 @@ router.post('/:id/interest', async (req, res) => {
   const { userName } = req.body;
 
   try {
-    const updatedSpot = await divingSpotSchema.findOneAndUpdate(
+    const updatedSpot = await DivingSpot.findOneAndUpdate(
       { _id: id, usersInterested: { $ne: userName } },
       { $push: { usersInterested: userName } },
       { new: true }
@@ -198,7 +197,7 @@ router.get('/:id/list_interest', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const spot = await divingSpotSchema.findById(id);
+    const spot = await DivingSpot.findById(id);
     if (!spot) {
       return res.status(404).send('Spot de plongée non trouvé');
     }
