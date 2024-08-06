@@ -1,4 +1,8 @@
-# serverDiveExplore
+# DiveExplore - Server
+This repository contains the server-side code for the DiveExplore web application.
+
+## Related Repositories
+- [DiveExplore - Client](https://github.com/yenkeljaoui/Client_DiveExplore)
 
 ## Description
 
