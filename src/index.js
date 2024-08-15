@@ -5,13 +5,14 @@ import mongoose from './config/mongoose.js';
 import cloudinary from './config/cloudinary.js';
 import upload from './middlewares/multer.js';
 import aboutRoutes from './routes/about.js';
-import signupRoutes from './routes/signup.js'; // Import sign-up routes
-import signinRoutes from './routes/signin.js'; // Import sign-in routes
-import postRoutes from './routes/posts.js'; // Import post routes
-import followRoutes from './routes/follow.js';   // Import user routes
+import signupRoutes from './routes/signup.js';
+import signinRoutes from './routes/signin.js';
+import postRoutes from './routes/posts.js';
+import followRoutes from './routes/follow.js';
 import diveSpotsRoutes from './routes/dive-spots.js';
+import settingsRoutes from './routes/settings.js';  // Import settings routes
 
-dotenv.config(); // Charger les variables d'environnement
+dotenv.config(); // Load environment variables
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -27,6 +28,7 @@ app.use('/signin', signinRoutes); // Sign-in routes
 app.use('/posts', postRoutes); // Post routes
 app.use('/', followRoutes);  // Follow/Unfollow routes
 app.use('/dive-spots', diveSpotsRoutes);
+app.use('/settings', settingsRoutes);  // Settings routes
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
