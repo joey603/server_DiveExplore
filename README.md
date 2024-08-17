@@ -8,36 +8,36 @@ This repository contains the server-side code for the DiveExplore web applicatio
 
 This is a Node.js server application built with Express.js.
 
-## Installation
+To run the project, follow these steps:
 
-To set up the server, follow these steps:
+Clone the Repositories:
 
-1. **Clone the repository:**
+Server Project:
+git clone https://github.com/YoanWaza/serverDiveExplore
 
-   git clone <repository-url>
-Navigate into the project directory:
+Client Project:
+git clone https://github.com/yenkeljaoui/Client_DiveExplore
 
-cd server
-Install the dependencies:
+Set Up the Server:
+Navigate to the server directory:
+cd serverDiveExplore
 
+Install the necessary dependencies:
 npm install
-Running the Server
-To start the server, use:
 
+Create a .env file:
+cp .env.example .env
+
+Start the server:
 npm start
-Alternatively, for development with automatic restarts, use:
 
+Set Up the Client:
 
-npm run dev
-Testing
-To run tests, use:
+Navigate to the client directory:
+cd ../Client_DiveExplore
 
-npm test
-This will execute the tests defined in the tests directory.
+Install the necessary dependencies:
+npm install
 
-Linting
-To lint the project files, use:
-
-bash
-Copy code
-npm run lint
+Start the client application:
+npm start
