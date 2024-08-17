@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/user.js';
+import Notification from '../models/notifications.js';
 
 const router = express.Router();
 
@@ -19,6 +20,17 @@ router.post('/follow', async (req, res) => {
       currentUserDoc.following.push(targetUser);
       await currentUserDoc.save();
     }
+
+    // Create a new notification for the target user
+    const notification = new Notification({
+      actionUsername: currentUser,   // User who is following
+      postOwner: targetUser,         // User being followed
+      typeOf: 'Follow',             // Type of notification
+      date: new Date(),             // Date of the notification
+      idPost: null                  // No post associated with a follow
+    });
+
+    await notification.save();
 
     res.json({ message: `Now following ${targetUser}` });
   } catch (err) {

@@ -10,7 +10,8 @@ import signinRoutes from './routes/signin.js';
 import postRoutes from './routes/posts.js';
 import followRoutes from './routes/follow.js';
 import diveSpotsRoutes from './routes/dive-spots.js';
-import settingsRoutes from './routes/settings.js';  // Import settings routes
+import settingsRoutes from './routes/settings.js';
+import notificationRoutes from './routes/notifications.js';
 
 dotenv.config(); // Load environment variables
 
@@ -29,6 +30,7 @@ app.use('/posts', postRoutes); // Post routes
 app.use('/', followRoutes);  // Follow/Unfollow routes
 app.use('/dive-spots', diveSpotsRoutes);
 app.use('/settings', settingsRoutes);  // Settings routes
+app.use('/notifications', notificationRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

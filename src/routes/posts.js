@@ -1,5 +1,6 @@
 import express from 'express';
 import Post from '../models/post.js';
+import Notification from '../models/notifications.js';
 import User from '../models/user.js';
 import upload from '../middlewares/multer.js';
 import cloudinary from '../config/cloudinary.js';
@@ -58,6 +59,18 @@ router.post('/:id/like', async (req, res) => {
       post.likes += 1;
       post.likedBy.push(username);
       await post.save();
+
+      // Create a new notification
+      const notification = new Notification({
+        actionUsername: username,  // User who liked the post
+        postOwner: post.username,  // User who owns the post
+        typeOf: 'Like',           // Type of notification
+        date: new Date(),         // Date of the notification
+        idPost: post._id          // ID of the post
+      });
+
+      await notification.save();
+
       res.json(post);
     } else {
       res.status(400).send('User has already liked this post');
@@ -68,6 +81,34 @@ router.post('/:id/like', async (req, res) => {
   }
 });
 
+router.get('/:postId/likes', async (req, res) => {
+  const { postId } = req.params;
+
+  try {
+    const post = await Post.findById(postId).populate('likedBy', 'username'); // Adjust based on your schema
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    res.json(post.likedBy);
+  } catch (error) {
+    console.error('Error fetching likes:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Route to get the list of users who liked a post
+router.get('/:postId/likers', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).send('Post not found');
+    res.json(post.likedBy);
+  } catch (error) {
+    console.error('Error fetching likers:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+
 // Comment on a post
 router.post('/:id/comment', async (req, res) => {
   try {
@@ -77,8 +118,21 @@ router.post('/:id/comment', async (req, res) => {
     const { username, comment } = req.body;
     if (!username || !comment) return res.status(400).send('Username and comment are required');
 
+    // Add the comment to the post
     post.comments.push({ username, comment, date: new Date() });
     await post.save();
+
+    // Create a new notification
+    const notification = new Notification({
+      actionUsername: username,  // User who made the comment
+      postOwner: post.username,  // User who owns the post
+      typeOf: 'Comment',        // Type of notification
+      date: new Date(),         // Date of the notification
+      idPost: post._id          // ID of the post
+    });
+
+    await notification.save();
+
     res.json(post);
   } catch (err) {
     console.error('Error adding comment:', err);
@@ -185,6 +239,22 @@ router.delete('/:postId', async (req, res) => {
     res.status(200).json({ message: 'Post deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Error deleting post' });
+  }
+});
+
+router.get('/:postId', async (req, res) => {
+  try {
+    const postId = req.params.postId;
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    res.json(post);
+  } catch (error) {
+    console.error('Error fetching post by ID:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
