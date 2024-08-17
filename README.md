@@ -13,9 +13,11 @@ To run the project, follow these steps:
 Clone the Repositories:
 
 Server Project:
+
 git clone https://github.com/YoanWaza/serverDiveExplore
 
 Client Project:
+
 git clone https://github.com/yenkeljaoui/Client_DiveExplore
 
 Set Up the Server:
